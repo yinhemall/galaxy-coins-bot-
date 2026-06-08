@@ -43,7 +43,7 @@ class Economy(commands.Cog):
     def __init__(self, bot): self.bot = bot
 
     @commands.command(name="sync")
-    @commands.has_permissions(administrator=True) # 改成管理員即可同步
+    @commands.has_permissions(administrator=True)
     async def sync(self, ctx):
         synced = await self.bot.tree.sync()
         await ctx.send(f"✅ 已同步 {len(synced)} 個指令到 Discord！")
@@ -54,8 +54,20 @@ class Economy(commands.Cog):
         bal = data.get(str(interaction.user.id), {}).get("balance", 0)
         await interaction.response.send_message(f"💰 你的餘額: **{bal}**")
 
+    # 新增發送介面的指令
+    @app_commands.command(name="setup_daily", description="發送簽到面板 (管理員)")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def setup_daily(self, interaction: discord.Interaction):
+        await interaction.channel.send("點擊下方按鈕進行每日簽到：", view=DailyView())
+        await interaction.response.send_message("簽到面板已發送！", ephemeral=True)
+
+    @app_commands.command(name="setup_games", description="發送遊戲面板 (管理員)")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def setup_games(self, interaction: discord.Interaction):
+        await interaction.channel.send("選擇你想玩的遊戲：", view=GameView())
+        await interaction.response.send_message("遊戲面板已發送！", ephemeral=True)
+
 async def setup(bot):
-    # 註冊所有 Persistent Views
     bot.add_view(DailyView())
     bot.add_view(GameView())
     bot.add_view(WalletView())
