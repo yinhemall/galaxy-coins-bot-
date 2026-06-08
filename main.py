@@ -4,24 +4,12 @@ import asyncio
 from discord.ext import commands
 from aiohttp import web
 
-# 機器人初始化
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# 同步指令 (!sync)
-@bot.command(name="sync")
-@commands.has_permissions(administrator=True)
-async def sync(ctx):
-    try:
-        synced = await bot.tree.sync()
-        await ctx.send(f"✅ 已成功同步 {len(synced)} 個指令到 Discord！")
-    except Exception as e:
-        await ctx.send(f"❌ 同步失敗: {e}")
-
-# 網頁伺服器 (保持容器活躍)
-async def handle(request):
-    return web.Response(text="Bot is running")
+# 網頁伺服器 (保活專用)
+async def handle(request): return web.Response(text="Bot is running")
 
 async def start_web_server():
     app = web.Application()
@@ -31,23 +19,28 @@ async def start_web_server():
     port = int(os.environ.get('PORT', 8080))
     site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
-    print(f"✅ 網頁伺服器啟動於 port {port}")
+    print(f"✅ Web server running on port {port}")
 
-# 機器人啟動邏輯
 @bot.event
 async def on_ready():
-    print(f"✅ 機器人已成功登入: {bot.user}")
+    print(f"✅ 機器人已登入: {bot.user}")
+    
+    # 1. 載入 Cog
     try:
         await bot.load_extension('cogs.economy')
         print("✅ Economy Cog 載入成功")
     except Exception as e:
         print(f"❌ 載入失敗: {e}")
 
+    # 2. 自動同步指令 (核心修改：解決 0 個指令問題)
+    try:
+        synced = await bot.tree.sync()
+        print(f"✅ 指令同步成功: {len(synced)} 個指令已註冊")
+    except Exception as e:
+        print(f"❌ 同步失敗: {e}")
+
 async def start_bot():
     token = os.environ.get('DISCORD_TOKEN')
-    if not token:
-        print("❌ 錯誤: 未設定 DISCORD_TOKEN 環境變數")
-        return
     await bot.start(token)
 
 async def main():
