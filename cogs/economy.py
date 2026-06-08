@@ -23,7 +23,7 @@ def save_data(data):
 # --- UI 介面類別 (必須在 setup 之前定義) ---
 class DailyView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
-    @discord.ui.button(label="領取每日獎勵 🌑", style=discord.ButtonStyle.green, custom_id="daily_btn_v2")
+    @discord.ui.button(label="✅｜領取每日獎勵", style=discord.ButtonStyle.green, custom_id="daily_btn_v2")
     async def daily_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         # ... (你的簽到邏輯保持不變)
         await interaction.response.send_message("簽到功能運作中！", ephemeral=True)
