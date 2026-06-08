@@ -117,16 +117,19 @@ class Economy(commands.Cog):
     
     @app_commands.command(name="set_currency_name", description="[管理員] 修改貨幣名稱")
     @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.guild_only()
     async def set_currency(self, interaction: discord.Interaction, name: str):
         set_currency_name(name); await interaction.response.send_message(f"✅ 貨幣名稱已修改為: **{name}**")
 
     @app_commands.command(name="balance", description="查詢餘額")
+    @app_commands.guild_only()
     async def balance(self, interaction: discord.Interaction):
         curr = get_currency_name(); data = load_data()
         bal = data.get(str(interaction.user.id), {"balance": 0})["balance"]
         await interaction.response.send_message(f"💰 目前餘額: **{bal}** {curr}。")
 
     @app_commands.command(name="leaderboard_streak", description="查看連續簽到排行榜")
+    @app_commands.guild_only()
     async def leaderboard_streak(self, interaction: discord.Interaction):
         await interaction.response.defer()
         data = load_data()
@@ -140,6 +143,7 @@ class Economy(commands.Cog):
 
     @app_commands.command(name="add_money", description="[管理員] 給予特定用戶貨幣")
     @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.guild_only()
     async def add_money(self, interaction: discord.Interaction, member: discord.Member, amount: int):
         if amount <= 0: return await interaction.response.send_message("❌ 金額需大於 0", ephemeral=True)
         data = load_data()
@@ -151,6 +155,7 @@ class Economy(commands.Cog):
 
     @app_commands.command(name="remove_money", description="[管理員] 扣除特定用戶貨幣")
     @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.guild_only()
     async def remove_money(self, interaction: discord.Interaction, member: discord.Member, amount: int):
         if amount <= 0: return await interaction.response.send_message("❌ 金額需大於 0", ephemeral=True)
         data = load_data()
@@ -162,6 +167,7 @@ class Economy(commands.Cog):
 
     @app_commands.command(name="setup_daily", description="[管理員] 發送簽到訊息")
     @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.guild_only()
     async def setup_daily(self, interaction: discord.Interaction):
         curr = get_currency_name()
         embed = discord.Embed(title="🌑 每日簽到", description=f"每天領取 100-300 {curr}\n🔥 連續滿 7 天加贈 1,000 {curr}！", color=discord.Color.blue())
@@ -169,6 +175,7 @@ class Economy(commands.Cog):
 
     @app_commands.command(name="setup_games", description="[管理員] 發送遊戲廳入口")
     @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.guild_only()
     async def setup_games(self, interaction: discord.Interaction):
         embed = discord.Embed(title="🎮 銀河遊戲廳", description="點擊下方按鈕進行遊戲！", color=discord.Color.green())
         await interaction.channel.send(embed=embed, view=MenuStarterView()); await interaction.response.send_message("已發送", ephemeral=True)
