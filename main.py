@@ -1,18 +1,15 @@
-import sys
 import os
 import discord
 import asyncio
 from discord.ext import commands
 from aiohttp import web
 
-# 確保路徑正確
-sys.path.append(os.getcwd())
-
+# 初始化機器人
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# --- 網頁伺服器 ---
+# 簡易網頁伺服器（用於保活）
 async def web_handler(request):
     return web.Response(text="Bot is running!", status=200)
 
@@ -24,35 +21,32 @@ async def start_web_server():
     port = int(os.environ.get('PORT', 8080))
     site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
-    print(f"網頁伺服器已啟動於 port {port}")
+    print(f"✅ 網頁伺服器已啟動於 port {port}")
 
-# --- 載入 Cogs ---
+# 載入 Cogs
 async def load_extensions():
+    # 確保資料夾存在
     if os.path.exists('./cogs'):
         for filename in os.listdir('./cogs'):
             if filename.endswith('.py') and filename != '__init__.py':
-                # 這會觸發 cogs/economy.py 內的 setup() 函數
-                # 按鈕註冊 (bot.add_view) 都在那裡面處理，這裡不需要匯入 View
-                await bot.load_extension(f'cogs.{filename[:-3]}')
-                print(f"已載入: {filename}")
+                try:
+                    await bot.load_extension(f'cogs.{filename[:-3]}')
+                    print(f"✅ 已載入: {filename}")
+                except Exception as e:
+                    print(f"❌ 無法載入 {filename}: {e}")
 
 @bot.event
 async def on_ready():
     await load_extensions()
-    print(f'✅ 機器人已上線: {bot.user}')
-
-@bot.command()
-@commands.is_owner()
-async def sync(ctx):
-    # 強制同步至當前伺服器，解決斜線指令看不到的問題
-    bot.tree.copy_global_to(guild=ctx.guild)
-    synced = await bot.tree.sync(guild=ctx.guild)
-    await ctx.send(f"✅ 已強制同步指令至本伺服器！同步了 {len(synced)} 個指令。")
+    print(f'✅ 機器人已登入: {bot.user}')
 
 async def main():
-    # 同時啟動網頁伺服器與機器人
     await start_web_server()
-    await bot.start(os.getenv('DISCORD_TOKEN'))
+    token = os.getenv('DISCORD_TOKEN')
+    if not token:
+        print("❌ 錯誤: 未找到 DISCORD_TOKEN 環境變數")
+        return
+    await bot.start(token)
 
 if __name__ == "__main__":
     asyncio.run(main())
