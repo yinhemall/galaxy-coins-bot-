@@ -5,9 +5,6 @@ import asyncio
 from discord.ext import commands
 from aiohttp import web
 
-# 匯入所有的 View，確保重啟後按鈕都能運作
-from cogs.economy import DailyView, MenuStarterView, GameMenuView
-
 sys.path.append(os.getcwd())
 
 intents = discord.Intents.default()
@@ -38,27 +35,18 @@ async def load_extensions():
 
 @bot.event
 async def on_ready():
-    # 載入所有功能模組
     await load_extensions()
-    
-    # 【關鍵】重啟後必須重新註冊所有 View，否則按鈕會顯示 "互動失敗"
-    bot.add_view(DailyView())
-    bot.add_view(MenuStarterView())
-    bot.add_view(GameMenuView())
-    
     print(f'✅ 機器人已上線: {bot.user}')
-    print(f'✅ 所有按鈕監聽器已註冊完畢')
 
 @bot.command()
 @commands.is_owner()
 async def sync(ctx):
-    # 自動同步斜線指令
-    synced = await bot.tree.sync()
-    await ctx.send(f"✅ 指令已同步！共 {len(synced)} 個。")
+    bot.tree.copy_global_to(guild=ctx.guild)
+    synced = await bot.tree.sync(guild=ctx.guild)
+    await ctx.send(f"✅ 已強制同步指令至本伺服器！同步了 {len(synced)} 個指令。")
 
 async def main():
     await start_web_server()
-    # 記得確保 Railway 的變數 DISCORD_TOKEN 有設定好
     await bot.start(os.getenv('DISCORD_TOKEN'))
 
 if __name__ == "__main__":
