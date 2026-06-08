@@ -1,28 +1,27 @@
-import os
-import discord
-import asyncio
-from discord.ext import commands
-from aiohttp import web
+# ... 上面的 web server 程式碼保持不變 ...
 
-# 建立一個簡單的 web server 來滿足 Railway 的需求
-async def handle(request):
-    return web.Response(text="Bot is running")
+# 機器人初始化
+intents = discord.Intents.default()
+intents.message_content = True
+bot = commands.Bot(command_prefix="!", intents=intents)
 
-async def start_web_server():
-    app = web.Application()
-    app.router.add_get('/', handle)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', int(os.environ.get('PORT', 8080)))
-    await site.start()
-    print("✅ 網頁伺服器啟動於 port 8080")
+@bot.event
+async def on_ready():
+    print(f"✅ 機器人已成功登入: {bot.user}")
+    # 這裡載入你的 Cog
+    try:
+        await bot.load_extension('cogs.economy')
+        print("✅ Economy Cog 載入成功")
+    except Exception as e:
+        print(f"❌ 載入失敗: {e}")
 
-# 你的機器人啟動邏輯
 async def start_bot():
-    # 這裡放你初始化 bot 的程式碼
-    # ...
-    # 最後記得用 await bot.start(token)
-    pass
+    token = os.getenv('DISCORD_TOKEN')
+    if not token:
+        print("❌ 錯誤: 未設定 DISCORD_TOKEN")
+        return
+    # 這是最關鍵的一行，之前你那邊是空的
+    await bot.start(token)
 
 async def main():
     await asyncio.gather(start_web_server(), start_bot())
