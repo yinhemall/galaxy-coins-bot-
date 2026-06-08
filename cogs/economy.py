@@ -115,7 +115,6 @@ class MenuStarterView(discord.ui.View):
 class Economy(commands.Cog):
     def __init__(self, bot): self.bot = bot
     
-    # 這裡保留你原本的 set_currency, balance, leaderboard_streak, setup_daily, setup_games 指令即可
     @app_commands.command(name="set_currency_name", description="[管理員] 修改貨幣名稱")
     @app_commands.checks.has_permissions(administrator=True)
     async def set_currency(self, interaction: discord.Interaction, name: str):
@@ -131,12 +130,19 @@ class Economy(commands.Cog):
     async def leaderboard_streak(self, interaction: discord.Interaction):
         await interaction.response.defer()
         data = load_data()
-        sorted_users = sorted([(uid, info.get("streak", 0)) for uid, info in data.items()], key=lambda x: x[1], reverse=True)[:10]
+        # 篩選掉數據異常的用戶，並進行排序
+        sorted_users = sorted(
+            [(uid, info.get("streak", 0)) for uid, info in data.items() if info.get("streak", 0) > 0], 
+            key=lambda x: x[1], reverse=True
+        )[:10]
+        
+        if not sorted_users:
+            return await interaction.followup.send("目前還沒有人簽到過喔！")
+
         msg = "🏆 **連續簽到排行榜 (Top 10)**\n\n"
         for i, (uid, streak) in enumerate(sorted_users, 1):
-            try: user = await self.bot.fetch_user(int(uid)); name = user.name
-            except: name = "未知用戶"
-            msg += f"{i}. {name}: **{streak}** 天\n"
+            # 使用 <@uid> 格式產生標記
+            msg += f"{i}. <@{uid}>: **{streak}** 天\n"
         await interaction.followup.send(msg)
 
     @app_commands.command(name="setup_daily", description="[管理員] 發送簽到訊息")
