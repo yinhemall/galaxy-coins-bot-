@@ -25,8 +25,24 @@ class DailyView(discord.ui.View):
     
     @discord.ui.button(label="領取每日獎勵 🌑", style=discord.ButtonStyle.green, custom_id="daily_btn_v2")
     async def daily_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # 這裡放入你原本完整的簽到邏輯
-        await interaction.response.send_message("簽到功能運作中！", ephemeral=True)
+        # 這是簽到核心邏輯
+        data = load_data()
+        uid = str(interaction.user.id)
+        if uid not in data: data[uid] = {"balance": 0, "last_daily": "2000-01-01", "streak": 0}
+        
+        user = data[uid]
+        now = datetime.now()
+        last_daily = datetime.fromisoformat(user.get("last_daily", "2000-01-01"))
+        
+        # 簡單冷卻判斷
+        if now - last_daily < timedelta(hours=24):
+            await interaction.response.send_message("⏳ 正在冷卻中，請稍後再來！", ephemeral=True)
+            return
+            
+        user["balance"] += 500
+        user["last_daily"] = now.isoformat()
+        save_data(data)
+        await interaction.response.send_message(f"✅ 簽到成功！獲得 500 貨幣。目前餘額: {user['balance']}", ephemeral=True)
 
 class GameView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
@@ -47,9 +63,22 @@ class Economy(commands.Cog):
     @app_commands.command(name="setup_daily", description="發送專業簽到面板")
     @app_commands.checks.has_permissions(administrator=True)
     async def setup_daily(self, interaction: discord.Interaction):
-        await interaction.response.send_message("已發送！", ephemeral=True)
+        embed = discord.Embed(
+            title="📆 銀河商城每日簽到", 
+            description="歡迎領取每日補給！點擊下方按鈕領取獎勵。", 
+            color=discord.Color.blue()
+        )
+        
+        try:
+            # 這是發送到頻道的動作
+            await interaction.channel.send(embed=embed, view=DailyView())
+            # 這是給發送者的私人回饋
+            await interaction.response.send_message("✅ 簽到面板已部署！", ephemeral=True)
+        except discord.Forbidden:
+            await interaction.response.send_message("❌ 錯誤：我沒有在該頻道發送訊息或 Embed 的權限！", ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"❌ 錯誤: {e}", ephemeral=True)
 
-# --- setup 函數 (沒有包含 sync 指令) ---
 async def setup(bot):
     bot.add_view(DailyView())
     bot.add_view(GameView())
