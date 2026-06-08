@@ -25,13 +25,24 @@ class DailyView(discord.ui.View):
     async def daily_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         data = load_data()
         uid = str(interaction.user.id)
-        if uid not in data: data[uid] = {"balance": 0, "last_daily": "2000-01-01", "streak": 0}
-        
-        user = data[uid]
         now = datetime.now()
+
+        # --- 修正點：如果是第一次領，直接建立資料，避免與 2000 年進行比較 ---
+        if uid not in data:
+            reward = random.randint(800, 1500)
+            data[uid] = {
+                "balance": reward, 
+                "last_daily": now.isoformat(), 
+                "streak": 1
+            }
+            save_data(data)
+            await interaction.response.send_message(f"🎉 歡迎來到銀河商城！首次簽到獲得 `$ {reward:,}` 金幣。", ephemeral=True)
+            return
+
+        user = data[uid]
         last_daily = datetime.fromisoformat(user.get("last_daily", "2000-01-01"))
         
-        # 1. 檢查是否在 24 小時冷卻內 (小於 24 小時)
+        # 1. 檢查冷卻 (24小時)
         if now - last_daily < timedelta(hours=24):
             remaining = (last_daily + timedelta(hours=24) - now)
             h = int(remaining.total_seconds() // 3600)
@@ -42,7 +53,7 @@ class DailyView(discord.ui.View):
             )
             return
 
-        # 2. 嚴格斷簽：只要超過 24 小時沒簽，立刻重置為 1
+        # 2. 嚴格斷簽 (超過 24 小時則重置)
         if now - last_daily > timedelta(hours=24):
             user["streak"] = 1
             streak_status = "❄️ 由於超過 24 小時未簽到，連續紀錄已重置。"
@@ -52,13 +63,12 @@ class DailyView(discord.ui.View):
             
         # 3. 獎勵計算
         reward = random.randint(800, 1500)
-        bonus = 10000 if user["streak"] % 7 == 0 else 0
-        
+        bonus = 5000 if user["streak"] % 7 == 0 else 0
         user["balance"] += (reward + bonus)
         user["last_daily"] = now.isoformat()
         save_data(data)
         
-        # 4. 成功 Embed
+        # 4. 顯示結果
         embed = discord.Embed(title="🌌 每日簽到成功載入", color=0xFFD700)
         embed.set_thumbnail(url="https://media.discordapp.net/attachments/你的頭像連結.png") 
         embed.description = f"━━━━━━━━━━━━━━━━━━\n\n{streak_status}\n\n"
@@ -78,7 +88,7 @@ class Economy(commands.Cog):
             description=(
                 "━━━━━━━━━━━━━━━━━━━━\n"
                 "**歡迎來到銀河商城的每日簽到系統。**\n\n"
-                "🔹 **每日補給：** `$ 500 - 1,000` 貨幣\n"
+                "🔹 **每日補給：** `$ 800 - 1,500` 貨幣\n"
                 "🔹 **七日加碼：** 連續七天簽到獲得額外 `$ 5,000`\n"
                 "🔹 **嚴格規則：** 超過 24 小時未領取，連續紀錄立即歸零！\n\n"
                 "請點擊下方按鈕，領取今日的獎勵。"
@@ -88,13 +98,9 @@ class Economy(commands.Cog):
         main.set_thumbnail(url="https://media.discordapp.net/attachments/你的頭像連結.png")
         main.set_footer(text="Galaxy Store Persistence Engine • 嚴格模式運行中")
         
-        try:
-            await interaction.channel.send(embed=main, view=DailyView())
-            await interaction.response.send_message("✅ 頂級簽到面板已部署。", ephemeral=True)
-        except Exception as e:
-            await interaction.response.send_message(f"❌ 部署失敗: {e}", ephemeral=True)
+        await interaction.channel.send(embed=main, view=DailyView())
+        await interaction.response.send_message("✅ 頂級簽到面板已部署。", ephemeral=True)
 
 async def setup(bot):
     bot.add_view(DailyView())
     await bot.add_cog(Economy(bot))
-    print("✅ Premium Economy System Loaded")
