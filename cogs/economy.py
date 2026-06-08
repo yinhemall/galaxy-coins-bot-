@@ -27,54 +27,51 @@ class DailyView(discord.ui.View):
         uid = str(interaction.user.id)
         now = datetime.now()
 
-        # --- 修正點：如果是第一次領，直接建立資料，避免與 2000 年進行比較 ---
+        # 1. 首次簽到處理
         if uid not in data:
-            reward = random.randint(800, 1500)
-            data[uid] = {
-                "balance": reward, 
-                "last_daily": now.isoformat(), 
-                "streak": 1
-            }
+            data[uid] = {"balance": 1000, "last_daily": now.isoformat(), "streak": 1}
             save_data(data)
-            await interaction.response.send_message(f"🎉 歡迎來到銀河商城！首次簽到獲得 `$ {reward:,}` 金幣。", ephemeral=True)
+            await self.send_success_embed(interaction, 1, 1000, 1000, "🎉 歡迎加入！首次簽到已啟用。")
             return
 
         user = data[uid]
         last_daily = datetime.fromisoformat(user.get("last_daily", "2000-01-01"))
         
-        # 1. 檢查冷卻 (24小時)
+        # 2. 冷卻判斷 (24小時)
         if now - last_daily < timedelta(hours=24):
             remaining = (last_daily + timedelta(hours=24) - now)
-            h = int(remaining.total_seconds() // 3600)
-            m = int((remaining.total_seconds() % 3600) // 60)
+            h, m = int(remaining.total_seconds() // 3600), int((remaining.total_seconds() % 3600) // 60)
             await interaction.response.send_message(
-                embed=discord.Embed(description=f"⏳ **能量傳輸中...**\n請於 `{h} 小時 {m} 分鐘` 後再次訪問。", color=0x2b2d31), 
+                embed=discord.Embed(description=f"⏳ **簽到冷卻中...**\n請於 `{h} 小時 {m} 分鐘` 後再次嘗試。", color=0x2b2d31), 
                 ephemeral=True
             )
             return
 
-        # 2. 嚴格斷簽 (超過 24 小時則重置)
+        # 3. 嚴格斷簽 (超過 24 小時則重置)
         if now - last_daily > timedelta(hours=24):
             user["streak"] = 1
-            streak_status = "❄️ 由於超過 24 小時未簽到，連續紀錄已重置。"
+            status_msg = "❄️ 超過 24 小時未簽到，連簽紀錄已重置為 1。"
         else:
             user["streak"] += 1
-            streak_status = f"🔥 完美連簽第 **{user['streak']}** 天！"
+            status_msg = f"🔥 完美連簽第 **{user['streak']}** 天！"
             
-        # 3. 獎勵計算
+        # 4. 獎勵與結算
         reward = random.randint(800, 1500)
         bonus = 5000 if user["streak"] % 7 == 0 else 0
         user["balance"] += (reward + bonus)
         user["last_daily"] = now.isoformat()
         save_data(data)
         
-        # 4. 顯示結果
-        embed = discord.Embed(title="🌌 每日簽到成功載入", color=0xFFD700)
+        await self.send_success_embed(interaction, user["streak"], reward, user["balance"], status_msg, bonus)
+
+    async def send_success_embed(self, interaction, streak, reward, balance, status, bonus=0):
+        embed = discord.Embed(title="🌌 簽到系統成功載入", color=0xFFD700)
         embed.set_thumbnail(url="https://media.discordapp.net/attachments/你的頭像連結.png") 
-        embed.description = f"━━━━━━━━━━━━━━━━━━\n\n{streak_status}\n\n"
-        embed.add_field(name="💰 獲得金額", value=f"`$ {reward + bonus:,}`", inline=True)
-        embed.add_field(name="💳 目前餘額", value=f"`$ {user['balance']:,}`", inline=True)
-        
+        embed.description = f"━━━━━━━━━━━━━━━━━━\n\n{status}\n\n"
+        embed.add_field(name="📅 連續簽到", value=f"`{streak} 天`", inline=True)
+        embed.add_field(name="💰 本次獲得", value=f"`$ {reward + bonus:,}`", inline=True)
+        embed.add_field(name="💳 目前餘額", value=f"`$ {balance:,}`", inline=True)
+        embed.set_footer(text="Galaxy Store Persistence Engine • 嚴格模式運行中")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 class Economy(commands.Cog):
@@ -88,16 +85,14 @@ class Economy(commands.Cog):
             description=(
                 "━━━━━━━━━━━━━━━━━━━━\n"
                 "**歡迎來到銀河商城的每日簽到系統。**\n\n"
-                "🔹 **每日補給：** `$ 800 - 1,500` 貨幣\n"
+                "🔹 **每日補給：** `$ 500 - 1,000` 貨幣\n"
                 "🔹 **七日加碼：** 連續七天簽到獲得額外 `$ 5,000`\n"
-                "🔹 **嚴格規則：** 超過 24 小時未領取，連續紀錄立即歸零！\n\n"
+                "🔹 **嚴格規則：** 超過 24 小時未領取，連簽紀錄立即歸零！\n\n"
                 "請點擊下方按鈕，領取今日的獎勵。"
             ),
             color=0x5865F2
         )
         main.set_thumbnail(url="https://media.discordapp.net/attachments/你的頭像連結.png")
-        main.set_footer(text="Galaxy Store Persistence Engine • 嚴格模式運行中")
-        
         await interaction.channel.send(embed=main, view=DailyView())
         await interaction.response.send_message("✅ 頂級簽到面板已部署。", ephemeral=True)
 
