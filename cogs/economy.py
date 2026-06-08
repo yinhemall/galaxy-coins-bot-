@@ -130,20 +130,35 @@ class Economy(commands.Cog):
     async def leaderboard_streak(self, interaction: discord.Interaction):
         await interaction.response.defer()
         data = load_data()
-        # 篩選掉數據異常的用戶，並進行排序
-        sorted_users = sorted(
-            [(uid, info.get("streak", 0)) for uid, info in data.items() if info.get("streak", 0) > 0], 
-            key=lambda x: x[1], reverse=True
-        )[:10]
+        sorted_users = sorted([(uid, info.get("streak", 0)) for uid, info in data.items()], key=lambda x: x[1], reverse=True)[:10]
+        if not sorted_users: return await interaction.followup.send("目前無資料。")
         
-        if not sorted_users:
-            return await interaction.followup.send("目前還沒有人簽到過喔！")
-
         msg = "🏆 **連續簽到排行榜 (Top 10)**\n\n"
         for i, (uid, streak) in enumerate(sorted_users, 1):
-            # 使用 <@uid> 格式產生標記
             msg += f"{i}. <@{uid}>: **{streak}** 天\n"
         await interaction.followup.send(msg)
+
+    @app_commands.command(name="add_money", description="[管理員] 給予特定用戶貨幣")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def add_money(self, interaction: discord.Interaction, member: discord.Member, amount: int):
+        if amount <= 0: return await interaction.response.send_message("❌ 金額需大於 0", ephemeral=True)
+        data = load_data()
+        uid = str(member.id)
+        if uid not in data: data[uid] = {"balance": 0, "last_daily": "2000-01-01 00:00:00", "streak": 0}
+        data[uid]["balance"] += amount
+        save_data(data)
+        await interaction.response.send_message(f"✅ 已給予 <@{member.id}> {amount} {get_currency_name()}！")
+
+    @app_commands.command(name="remove_money", description="[管理員] 扣除特定用戶貨幣")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def remove_money(self, interaction: discord.Interaction, member: discord.Member, amount: int):
+        if amount <= 0: return await interaction.response.send_message("❌ 金額需大於 0", ephemeral=True)
+        data = load_data()
+        uid = str(member.id)
+        if uid not in data: return await interaction.response.send_message("❌ 用戶無資料。", ephemeral=True)
+        data[uid]["balance"] = max(0, data[uid]["balance"] - amount)
+        save_data(data)
+        await interaction.response.send_message(f"✅ 已扣除 <@{member.id}> {amount} {get_currency_name()}！")
 
     @app_commands.command(name="setup_daily", description="[管理員] 發送簽到訊息")
     @app_commands.checks.has_permissions(administrator=True)
