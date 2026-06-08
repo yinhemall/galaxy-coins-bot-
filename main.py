@@ -4,23 +4,22 @@ import asyncio
 from discord.ext import commands
 from aiohttp import web
 
-# 1. 機器人初始化
+# 機器人初始化
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# 2. 加入同步指令 (!sync)
+# 同步指令 (!sync)
 @bot.command(name="sync")
 @commands.has_permissions(administrator=True)
 async def sync(ctx):
-    """手動同步指令到 Discord"""
     try:
         synced = await bot.tree.sync()
         await ctx.send(f"✅ 已成功同步 {len(synced)} 個指令到 Discord！")
     except Exception as e:
         await ctx.send(f"❌ 同步失敗: {e}")
 
-# 3. 網頁伺服器 (保活)
+# 網頁伺服器 (保持容器活躍)
 async def handle(request):
     return web.Response(text="Bot is running")
 
@@ -34,7 +33,7 @@ async def start_web_server():
     await site.start()
     print(f"✅ 網頁伺服器啟動於 port {port}")
 
-# 4. 機器人啟動邏輯
+# 機器人啟動邏輯
 @bot.event
 async def on_ready():
     print(f"✅ 機器人已成功登入: {bot.user}")
