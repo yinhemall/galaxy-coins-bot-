@@ -6,18 +6,35 @@ import os
 import random
 from datetime import datetime, timedelta
 
-DATA_FILE = "data.json"
+# --- 修正後的基礎資料處理 ---
+# 使用絕對路徑，確保無論在哪個資料夾執行，都能找到根目錄的 data.json
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_FILE = os.path.join(BASE_DIR, "data.json")
 
-# --- 基礎資料處理 (升級版) ---
 def load_data():
-    if not os.path.exists(DATA_FILE): return {"guild_settings": {}, "users": {}}
+    if not os.path.exists(DATA_FILE):
+        return {"guild_settings": {}, "users": {}}
     try:
-        with open(DATA_FILE, "r", encoding="utf-8") as f: return json.load(f)
-    except: return {"guild_settings": {}, "users": {}}
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            content = f.read()
+            # 如果檔案是空的或者只有空白，回傳初始結構
+            if not content.strip():
+                return {"guild_settings": {}, "users": {}}
+            return json.loads(content)
+    except Exception as e:
+        print(f"讀取錯誤 (已啟動保護機制): {e}")
+        return {"guild_settings": {}, "users": {}}
 
 def save_data(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as f: 
-        json.dump(data, f, indent=4, ensure_ascii=False)
+    try:
+        # 使用暫存檔案先寫入，再取代舊檔，是防止檔案在寫入中途損壞的最佳做法
+        temp_file = DATA_FILE + ".tmp"
+        with open(temp_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
+        # 取代舊檔
+        os.replace(temp_file, DATA_FILE)
+    except Exception as e:
+        print(f"寫入錯誤: {e}")
 
 def get_token_name(guild_id):
     data = load_data()
