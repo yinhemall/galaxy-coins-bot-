@@ -37,7 +37,7 @@ class DailyView(discord.ui.View):
 
         # 1. 首次簽到處理
         if uid not in data["users"]:
-            reward = random.randint(500, 1000) # 修改範圍為 500-1000
+            reward = random.randint(500, 1000)
             data["users"][uid] = {"balance": reward, "last_daily": now.isoformat(), "streak": 1}
             save_data(data)
             await self.send_success_embed(interaction, 1, reward, reward, token_name, "🎉 歡迎加入！首次簽到已啟用。")
@@ -65,7 +65,7 @@ class DailyView(discord.ui.View):
             status_msg = f"🔥 完美連簽第 **{user['streak']}** 天！"
             
         # 4. 獎勵與結算
-        reward = random.randint(500, 1000) # 修改範圍為 500-1000
+        reward = random.randint(500, 1000)
         bonus = 5000 if user["streak"] % 7 == 0 else 0
         user["balance"] += (reward + bonus)
         user["last_daily"] = now.isoformat()
@@ -129,14 +129,23 @@ class Economy(commands.Cog):
         token_name = get_token_name(gid)
         sorted_users = sorted(data["users"].items(), key=lambda x: x[1].get("balance", 0), reverse=True)[:10]
         
-        embed = discord.Embed(title="🏆 銀河財富排行榜", color=0xFFD700)
+        embed = discord.Embed(
+            title="🌌 **銀河首富爭霸戰** 🪐", 
+            description="這裡是伺服器最有錢的人：\n━━━━━━━━━━━━━━━━━━━━", 
+            color=0x00F0FF
+        )
+        
         desc = ""
         for i, (uid, info) in enumerate(sorted_users, start=1):
             member = interaction.guild.get_member(int(uid))
-            name = member.display_name if member else f"ID:{uid[-4:]}"
-            desc += f"**{i}.** {name}: `{info.get('balance', 0):,} {token_name}`\n"
+            name = member.mention if member else f"ID:{uid[-4:]} (已離開)"
+            balance = info.get('balance', 0)
+            
+            rank_icon = {1: "🥇", 2: "🥈", 3: "🥉"}.get(i, f"`#{i}` ")
+            desc += f"{rank_icon} {name}\n💰 擁有餘額：`{balance:,} {token_name}`\n\n"
         
-        embed.description = desc or "目前還沒有人擁有財富！"
+        embed.description += f"\n{desc}" if desc else "\n目前還沒有人擁有財富！"
+        embed.set_footer(text="Galaxy Store Persistence Engine • 數據每秒同步中", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="setup_daily", description="部署銀河商城頂級簽到面板")
@@ -145,7 +154,7 @@ class Economy(commands.Cog):
         token_name = get_token_name(interaction.guild_id)
         main = discord.Embed(
             title="🪐 **銀河商城**",
-            description=f"**每日補給發放中！**\n🔹 代幣單位: {token_name}\n🔹 嚴格規則：24小時未簽重置",
+            description=f"**每日補給發放中！**\n🔹 代幣單位: {token_name}\n🔹 嚴格規則：一天未簽連續簽到重置",
             color=0x5865F2
         )
         main.set_thumbnail(url="https://media.discordapp.net/attachments/你的頭像連結.png")
