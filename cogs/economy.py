@@ -74,13 +74,17 @@ class DailyView(discord.ui.View):
         await self.send_success_embed(interaction, user["streak"], reward + bonus, user["balance"], token_name, status_msg)
 
     async def send_success_embed(self, interaction, streak, total_reward, balance, token_name, status):
-        embed = discord.Embed(title="🌌 簽到系統成功載入", color=0xFFD700)
-        embed.set_thumbnail(url="https://media.discordapp.net/attachments/你的頭像連結.png") 
-        embed.description = f"━━━━━━━━━━━━━━━━━━\n\n{status}\n\n"
-        embed.add_field(name="📅 連續簽到", value=f"`{streak} 天`", inline=True)
-        embed.add_field(name="💰 本次獲得", value=f"`{total_reward:,} {token_name}`", inline=True)
-        embed.add_field(name="💳 目前餘額", value=f"`{balance:,} {token_name}`", inline=True)
-        embed.set_footer(text="Galaxy Store Persistence Engine • 嚴格模式運行中")
+        embed = discord.Embed(
+            title="🪐 銀河商城", 
+            color=0x5865F2 # 與原圖面板同色調
+        )
+        embed.description = (
+            f"------------------------------\n"
+            f"{status}\n\n"
+            f"📅 **連續簽到**：`{streak} 天`\n"
+            f"💰 **本次獲得**：`{total_reward:,} {token_name}`\n"
+            f"💳 **目前餘額**：`{balance:,} {token_name}`"
+        )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # --- 經濟指令集 ---
@@ -130,7 +134,7 @@ class Economy(commands.Cog):
         sorted_users = sorted(data["users"].items(), key=lambda x: x[1].get("balance", 0), reverse=True)[:10]
         
         embed = discord.Embed(
-            title="🌌 **銀河首富爭霸戰** 🪐", 
+            title="🌌 **貨幣排行榜** 🪐", 
             description="這裡是伺服器最有錢的人：\n━━━━━━━━━━━━━━━━━━━━", 
             color=0x00F0FF
         )
@@ -154,10 +158,15 @@ class Economy(commands.Cog):
         token_name = get_token_name(interaction.guild_id)
         main = discord.Embed(
             title="🪐 **銀河商城**",
-            description=f"**每日補給發放中！**\n🔹 代幣單位: {token_name}\n🔹 嚴格規則：一天未簽連續簽到重置",
+            description=(
+                f"歡迎來到銀河商城的每日簽到系統。\n\n"
+                f"🔹 **每日補給**：$ 500 - 1,000 貨幣\n"
+                f"🔹 **七日加碼**：連續七天簽到獲得額外 $ 5,000\n"
+                f"🔹 **嚴格規則**：超過一天未領取，連簽紀錄立即歸零！\n\n"
+                f"請點擊下方按鈕，領取今日的獎勵。"
+            ),
             color=0x5865F2
         )
-        main.set_thumbnail(url="https://media.discordapp.net/attachments/你的頭像連結.png")
         await interaction.channel.send(embed=main, view=DailyView())
         await interaction.response.send_message("✅ 頂級簽到面板已部署。", ephemeral=True)
 
