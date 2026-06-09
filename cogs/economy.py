@@ -1,44 +1,43 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-import json
-import os
 import random
+import os
 from datetime import datetime, timedelta
+from pymongo import MongoClient
+
+# --- MongoDB 連線設定 ---
+# 確保你在 Railway 的 Variables 中設定了 MONGO_URI
+MONGO_URI = os.getenv("MONGO_URI")
+client = MongoClient(MONGO_URI)
+db = client["GalaxyBot"]  # 資料庫名稱
+users_col = db["users"]   # 用戶資料集合
+settings_col = db["settings"] # 設定集合
 
 # --- 修正後的基礎資料處理 ---
-# 使用絕對路徑，確保無論在哪個資料夾執行，都能找到根目錄的 data.json
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_FILE = os.path.join(BASE_DIR, "data.json")
-
 def load_data():
-    if not os.path.exists(DATA_FILE):
-        return {"guild_settings": {}, "users": {}}
-    try:
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            content = f.read()
-            # 如果檔案是空的或者只有空白，回傳初始結構
-            if not content.strip():
-                return {"guild_settings": {}, "users": {}}
-            return json.loads(content)
-    except Exception as e:
-        print(f"讀取錯誤 (已啟動保護機制): {e}")
-        return {"guild_settings": {}, "users": {}}
+    """模擬舊版結構，從 MongoDB 抓取所有資料"""
+    all_users = list(users_col.find({}))
+    users_dict = {str(u["_id"]): {k: v for k, v in u.items() if k != "_id"} for u in all_users}
+    
+    all_settings = list(settings_col.find({}))
+    guild_dict = {str(s["_id"]): {k: v for k, v in s.items() if k != "_id"} for s in all_settings}
+    
+    return {"guild_settings": guild_dict, "users": users_dict}
 
 def save_data(data):
-    try:
-        # 使用暫存檔案先寫入，再取代舊檔，是防止檔案在寫入中途損壞的最佳做法
-        temp_file = DATA_FILE + ".tmp"
-        with open(temp_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4, ensure_ascii=False)
-        # 取代舊檔
-        os.replace(temp_file, DATA_FILE)
-    except Exception as e:
-        print(f"寫入錯誤: {e}")
+    """將資料更新回 MongoDB"""
+    # 更新使用者資料
+    for uid, udata in data["users"].items():
+        users_col.update_one({"_id": uid}, {"$set": udata}, upsert=True)
+    
+    # 更新設定資料
+    for gid, gdata in data["guild_settings"].items():
+        settings_col.update_one({"_id": gid}, {"$set": gdata}, upsert=True)
 
 def get_token_name(guild_id):
-    data = load_data()
-    return data.get("guild_settings", {}).get(str(guild_id), {}).get("token_name", "貨幣")
+    setting = settings_col.find_one({"_id": str(guild_id)})
+    return setting.get("token_name", "貨幣") if setting else "貨幣"
 
 # --- 原有的簽到邏輯 ---
 class DailyView(discord.ui.View):
@@ -93,7 +92,7 @@ class DailyView(discord.ui.View):
     async def send_success_embed(self, interaction, streak, total_reward, balance, token_name, status):
         embed = discord.Embed(
             title="🪐 銀河商城", 
-            color=0x5865F2 # 與原圖面板同色調
+            color=0x5865F2 
         )
         embed.description = (
             f"------------------------------\n"
@@ -158,10 +157,8 @@ class Economy(commands.Cog):
         
         desc = ""
         for i, (uid, info) in enumerate(sorted_users, start=1):
-            # 強制標記格式 <@ID>
             user_display = f"<@{uid}>"
             balance = info.get('balance', 0)
-            
             rank_icon = {1: "🥇", 2: "🥈", 3: "🥉"}.get(i, f"`#{i}` ")
             desc += f"{rank_icon} {user_display}\n💰 擁有餘額：`{balance:,} {token_name}`\n\n"
         
