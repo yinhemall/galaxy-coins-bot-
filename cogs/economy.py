@@ -19,12 +19,11 @@ def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f: 
         json.dump(data, f, indent=4, ensure_ascii=False)
 
-# 工具函式：獲取當前伺服器設定的代幣名稱
 def get_token_name(guild_id):
     data = load_data()
     return data.get("guild_settings", {}).get(str(guild_id), {}).get("token_name", "貨幣")
 
-# --- 原有的簽到邏輯 (原封不動保留) ---
+# --- 原有的簽到邏輯 ---
 class DailyView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
     
@@ -79,7 +78,7 @@ class DailyView(discord.ui.View):
         embed.set_footer(text="Galaxy Store Persistence Engine • 嚴格模式運行中")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-# --- 經濟指令集 (擴充功能) ---
+# --- 經濟指令集 ---
 class Economy(commands.Cog):
     def __init__(self, bot): self.bot = bot
 
@@ -101,20 +100,47 @@ class Economy(commands.Cog):
         balance = data["users"].get(uid, {}).get("balance", 0)
         await interaction.response.send_message(f"💳 目前餘額: `{balance:,} {token_name}`", ephemeral=True)
 
+    @app_commands.command(name="transfer", description="轉帳給其他成員")
+    async def transfer(self, interaction: discord.Interaction, member: discord.Member, amount: int):
+        if amount <= 0: return await interaction.response.send_message("❌ 金額需大於 0。", ephemeral=True)
+        data = load_data()
+        sender, receiver = str(interaction.user.id), str(member.id)
+        gid = str(interaction.guild_id)
+        token_name = get_token_name(gid)
+        
+        if data["users"].get(sender, {}).get("balance", 0) < amount:
+            return await interaction.response.send_message("❌ 餘額不足。", ephemeral=True)
+        
+        data["users"][sender]["balance"] -= amount
+        if receiver not in data["users"]: data["users"][receiver] = {"balance": 0, "last_daily": "2000-01-01", "streak": 0}
+        data["users"][receiver]["balance"] += amount
+        save_data(data)
+        await interaction.response.send_message(f"✅ 成功轉帳 `{amount:,} {token_name}` 給 {member.mention}！")
+
+    @app_commands.command(name="leaderboard", description="顯示伺服器財富排行榜")
+    async def leaderboard(self, interaction: discord.Interaction):
+        data = load_data()
+        gid = str(interaction.guild_id)
+        token_name = get_token_name(gid)
+        sorted_users = sorted(data["users"].items(), key=lambda x: x[1].get("balance", 0), reverse=True)[:10]
+        
+        embed = discord.Embed(title="🏆 銀河財富排行榜", color=0xFFD700)
+        desc = ""
+        for i, (uid, info) in enumerate(sorted_users, start=1):
+            member = interaction.guild.get_member(int(uid))
+            name = member.display_name if member else f"ID:{uid[-4:]}"
+            desc += f"**{i}.** {name}: `{info.get('balance', 0):,} {token_name}`\n"
+        
+        embed.description = desc or "目前還沒有人擁有財富！"
+        await interaction.response.send_message(embed=embed)
+
     @app_commands.command(name="setup_daily", description="部署銀河商城頂級簽到面板")
     @app_commands.checks.has_permissions(administrator=True)
     async def setup_daily(self, interaction: discord.Interaction):
         token_name = get_token_name(interaction.guild_id)
         main = discord.Embed(
             title="🪐 **銀河商城**",
-            description=(
-                f"━━━━━━━━━━━━━━━━━━━━\n"
-                f"**歡迎來到銀河商城的每日簽到系統。**\n\n"
-                f"🔹 **代幣單位：** {token_name}\n"
-                f"🔹 **每日補給：** `800 - 1,500` {token_name}\n"
-                f"🔹 **嚴格規則：** 超過 24 小時未領取，紀錄歸零！\n\n"
-                f"請點擊下方按鈕，領取今日的獎勵。"
-            ),
+            description=f"**每日補給發放中！**\n🔹 代幣單位: {token_name}\n🔹 嚴格規則：24小時未簽重置",
             color=0x5865F2
         )
         main.set_thumbnail(url="https://media.discordapp.net/attachments/你的頭像連結.png")
