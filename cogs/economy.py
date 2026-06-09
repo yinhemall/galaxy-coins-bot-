@@ -35,15 +35,18 @@ class DailyView(discord.ui.View):
         token_name = get_token_name(gid)
         now = datetime.now()
 
+        # 1. 首次簽到處理
         if uid not in data["users"]:
-            data["users"][uid] = {"balance": 1000, "last_daily": now.isoformat(), "streak": 1}
+            reward = random.randint(500, 1000) # 修改範圍為 500-1000
+            data["users"][uid] = {"balance": reward, "last_daily": now.isoformat(), "streak": 1}
             save_data(data)
-            await self.send_success_embed(interaction, 1, 1000, 1000, token_name, "🎉 歡迎加入！首次簽到已啟用。")
+            await self.send_success_embed(interaction, 1, reward, reward, token_name, "🎉 歡迎加入！首次簽到已啟用。")
             return
 
         user = data["users"][uid]
         last_daily = datetime.fromisoformat(user.get("last_daily", "2000-01-01"))
         
+        # 2. 冷卻判斷 (24小時)
         if now - last_daily < timedelta(hours=24):
             remaining = (last_daily + timedelta(hours=24) - now)
             h, m = int(remaining.total_seconds() // 3600), int((remaining.total_seconds() % 3600) // 60)
@@ -53,6 +56,7 @@ class DailyView(discord.ui.View):
             )
             return
 
+        # 3. 嚴格斷簽 (超過 24 小時則重置)
         if now - last_daily > timedelta(hours=24):
             user["streak"] = 1
             status_msg = "❄️ 超過 24 小時未簽到，連簽紀錄已重置為 1。"
@@ -60,7 +64,8 @@ class DailyView(discord.ui.View):
             user["streak"] += 1
             status_msg = f"🔥 完美連簽第 **{user['streak']}** 天！"
             
-        reward = random.randint(800, 1500)
+        # 4. 獎勵與結算
+        reward = random.randint(500, 1000) # 修改範圍為 500-1000
         bonus = 5000 if user["streak"] % 7 == 0 else 0
         user["balance"] += (reward + bonus)
         user["last_daily"] = now.isoformat()
