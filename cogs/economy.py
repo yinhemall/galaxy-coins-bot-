@@ -141,12 +141,12 @@ class Economy(commands.Cog):
         
         desc = ""
         for i, (uid, info) in enumerate(sorted_users, start=1):
-            member = interaction.guild.get_member(int(uid))
-            name = member.mention if member else f"ID:{uid[-4:]} (已離開)"
+            # 強制標記格式 <@ID>
+            user_display = f"<@{uid}>"
             balance = info.get('balance', 0)
             
             rank_icon = {1: "🥇", 2: "🥈", 3: "🥉"}.get(i, f"`#{i}` ")
-            desc += f"{rank_icon} {name}\n💰 擁有餘額：`{balance:,} {token_name}`\n\n"
+            desc += f"{rank_icon} {user_display}\n💰 擁有餘額：`{balance:,} {token_name}`\n\n"
         
         embed.description += f"\n{desc}" if desc else "\n目前還沒有人擁有財富！"
         embed.set_footer(text="Galaxy Store Persistence Engine • 數據每秒同步中", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
